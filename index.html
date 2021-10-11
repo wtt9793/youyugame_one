@@ -1,0 +1,300 @@
+<html>
+<header>
+    <meta name="viewport" content="initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0,user-scalable=no,width=device-width"/>
+</header>
+<body>
+<div class="wrapper">
+    <canvas id="background" width="375" height="456"></canvas>
+    <canvas id="canvas" width="375" height="456"></canvas>
+    <canvas id="foreground" width="375" height="456"></canvas>
+</div>
+<div>开始游戏后，点击屏幕前进</div>
+</body>
+<script>
+    class Character {
+  constructor(context, options = {}) {
+    const { src, width = 32, height = 48, top = 50, listener } = options;
+    this.ctx = context;
+    this.src = src;
+    this.width = width;
+    this.height = height;
+    this.top = top;
+    this.actionIndex = 0;
+    this.moveX = 0;
+    this.timer = null;
+    this.isMove = false;
+    this.listener = listener;
+    this.init();
+  }
+
+  init() {
+    this.image = new Image();
+    this.image.onload = () => {
+      this.ctx.drawImage(
+        this.image,
+        this.actionIndex * this.width,
+        this.height * 2,
+        this.width,
+        this.height,
+        0,
+        this.top,
+        this.width * 1.5,
+        this.height * 1.5
+      );
+    };
+    this.image.src = this.src;
+  }
+
+  walk() {
+    if (this.isMove) {
+      return;
+    }
+    this.isMove = true;
+    this.forward();
+    this.timer = setInterval(() => {
+      this.forward();
+    }, 150);
+  }
+
+  forward() {
+    this.actionIndex = (this.actionIndex + 1) % 4;
+    this.moveX += 4;
+    this.ctx.clearRect(0, this.top, 375, this.height * 1.5);
+    this.ctx.drawImage(
+      this.image,
+      this.actionIndex * this.width,
+      this.height * 2,
+      this.width,
+      this.height,
+      this.moveX,
+      this.top,
+      this.width * 1.5,
+      this.height * 1.5
+    );
+    this.listener && this.listener(this.moveX);
+  }
+
+  stop() {
+    this.isMove = false;
+    clearInterval(this.timer);
+  }
+}
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const bgCanvas = document.getElementById("background");
+const foreCanvas = document.getElementById("foreground");
+const width = canvas.clientWidth;
+const height = canvas.clientHeight;
+let isGaming = false;
+let gameCount = 0;
+let isCat = false;
+
+const bgPaint = {
+  ctx: bgCanvas.getContext("2d"),
+  drawBg() {
+    this.ctx.beginPath();
+    this.ctx.rect(0, 0, width, height);
+    this.ctx.fillStyle = "#ce574f";
+    this.ctx.fill();
+    const perHeight = height / 4;
+    const end = 300;
+    this.ctx.beginPath();
+    this.ctx.lineWidth = 5;
+    this.ctx.strokeStyle = "#e6b322";
+    this.ctx.moveTo(end, 0);
+    this.ctx.lineTo(end, height);
+    this.ctx.closePath();
+    this.ctx.stroke();
+  }
+};
+
+const forePaint = {
+  ctx: foreCanvas.getContext("2d"),
+  drawButton(text) {
+    const btnW = 120;
+    const btnH = 48;
+    this.ctx.beginPath();
+    this.ctx.rect((width - btnW) / 2, 250, btnW, btnH);
+    this.ctx.strokeStyle = "#ccc";
+    this.ctx.stroke();
+    this.ctx.font = '20px "微软雅黑"';
+    this.ctx.textBaseline = "middle";
+    this.ctx.textAlign = "center";
+    this.ctx.fillStyle = "#fff";
+    this.ctx.fillText(text, width / 2, 250 + btnH / 2);
+  },
+  drawStart() {
+    this.drawButton("开始");
+  },
+  drawWin() {
+    this.ctx.font = '32px "微软雅黑"';
+    this.ctx.textBaseline = "middle";
+    this.ctx.textAlign = "center";
+    this.ctx.fillStyle = "#fff";
+    this.ctx.fillText("Win", width / 2, 150);
+    this.drawButton("再来一次");
+  },
+  drawLose() {
+    this.ctx.font = '32px "微软雅黑"';
+    this.ctx.textBaseline = "middle";
+    this.ctx.textAlign = "center";
+    this.ctx.fillStyle = "#fff";
+    this.ctx.fillText("Lose", width / 2, 150);
+    this.drawButton("重新开始");
+  },
+  clear() {
+    this.ctx.clearRect(0, 0, width, height);
+  }
+};
+
+bgPaint.drawBg();
+forePaint.drawStart();
+
+foreCanvas.addEventListener("click", (e) => {
+  const isClickBtn = forePaint.ctx.isPointInPath(e.offsetX, e.offsetY);
+  if (!isClickBtn || isGaming) {
+    return;
+  }
+
+  isGaming = true;
+  forePaint.clear();
+  gameCount++;
+  isCat = gameCount > 5;
+  initGame();
+});
+
+const judge = {
+  image: new Image(),
+  init() {
+    this.image.onload = () => {
+      this.draw();
+    };
+    this.image.src = "https://s3.bmp.ovh/imgs/2021/10/727fc27ee8b9a6e7.png";
+  },
+  turn(isLeft) {
+    ctx.clearRect(320, (height - 96) / 2, 64, 96);
+    this.draw(isLeft);
+  },
+  draw(isLeft) {
+    ctx.drawImage(
+      this.image,
+      64,
+      isLeft ? 48 : 96,
+      32,
+      48,
+      320,
+      (height - 96) / 2,
+      64,
+      96
+    );
+  }
+};
+
+const initGame = () => {
+  let isAllowRun = true;
+  let timer = null;
+
+  ctx.clearRect(0, 0, width, height);
+  judge.init();
+  const girl = new Character(ctx, {
+    src: isCat
+      ? "https://s3.bmp.ovh/imgs/2021/10/035e5eb7556f6cf3.png"
+      : "https://s3.bmp.ovh/imgs/2021/10/70b59c5699cfbab5.png",
+    width: 32,
+    height: isCat ? 32 : 48,
+    listener: (x) => {
+      if (x > 300) {
+        girl.stop();
+        forePaint.drawWin();
+        isGaming = false;
+        isAllowRun = false;
+        clearTimeout(timer);
+        document.removeEventListener("touchstart", handleKeyPress);
+        document.removeEventListener("touchend", handleKeyUp);
+      }
+    }
+  });
+
+  let isRobotEnd = false;
+  const robot = new Character(ctx, {
+    src: "https://s3.bmp.ovh/imgs/2021/10/56c68440f5c1a836.png",
+    top: 300,
+    listener: (x) => {
+      if (x > 300) {
+        isRobotEnd = true;
+        robot.stop();
+      }
+    }
+  });
+  robot.walk();
+
+  const handleKeyUp = () => {
+    girl.stop();
+  };
+  const handleKeyPress = (e) => {
+    e.preventDefault();
+    if (!isGaming) {
+      return;
+    }
+    if (!isAllowRun && isGaming && !isCat) {
+      girl.walk();
+      girl.stop();
+      forePaint.drawLose();
+      isGaming = false;
+      isAllowRun = false;
+      clearTimeout(timer);
+      document.removeEventListener("touchstart", handleKeyPress);
+      document.removeEventListener("touchend", handleKeyUp);
+      return;
+    }
+    if (girl.isMove) {
+      return;
+    }
+    girl.walk();
+  };
+
+  const singAndLook = () => {
+    isAllowRun = !isAllowRun;
+    judge.turn(!isAllowRun);
+    if (isAllowRun) {
+      !isRobotEnd && robot.walk();
+    } else {
+      robot.stop();
+    }
+    timer = setTimeout(
+      () => {
+        singAndLook();
+      },
+      isAllowRun ? 4750 : 3000
+    );
+  };
+  timer = setTimeout(() => {
+    singAndLook();
+  }, 4750);
+
+  document.addEventListener("touchstart", handleKeyPress,{ passive: false });
+  document.addEventListener("touchend", handleKeyUp,{ passive: false });
+};
+</script>
+<style>
+body {
+  background: #f6f6f6;
+  text-align: center;
+}
+.wrapper {
+  width: 375px;
+  height: 456px;
+  position: relative;
+  margin: 24px auto;
+}
+canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+  user-select: none;
+  
+}
+
+</style>
+</html>
